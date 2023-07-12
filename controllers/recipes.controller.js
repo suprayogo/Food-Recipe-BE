@@ -1,240 +1,228 @@
-const db = require("../database");
+const db = require('../database')
+const model = require('../models/recipes.models')
 
 const getRecipesById = async (req, res) => {
   try {
     const {
-      params: { id },
-    } = req;
+      params: { id }
+    } = req
 
     if (isNaN(id)) {
       res.status(400).json({
         status: false,
-        message: "ID must be integer",
-      });
+        message: 'ID must be integer'
+      })
 
-      return;
+      return
     }
 
-    const query = await db`SELECT * FROM recipes WHERE id = ${id}`;
+    const query = await model.setGetRecipesByid(id)
 
     res.json({
       status: true,
-      message: "Get data success",
-      data: query,
-    });
+      message: 'Get data success',
+      data: query
+    })
   } catch (error) {
     res.status(500).json({
       status: false,
-      message: "Error in server",
-    });
+      message: 'Error in server'
+    })
   }
-};
+}
 
 const getAllRecipes = async (req, res) => {
   try {
-    let query;
-    let keyword = `%${req?.query?.keyword}%`;
-    let sort = db`DESC`;
-    let isPaginate =
+    let query
+    const keyword = `%${req?.query?.keyword}%`
+    let sort = db`DESC`
+    const isPaginate =
       req?.query?.pages &&
       !isNaN(req?.query?.pages) &&
-      parseInt(req?.query?.pages) >= 1;
+      parseInt(req?.query?.pages) >= 1
 
-    if (req?.query?.sortType?.toLowerCase() === "asc") {
+    if (req?.query?.sortType?.toLowerCase() === 'asc') {
       if (isPaginate) {
         sort = db`ASC LIMIT 10 OFFSET ${
           10 * (parseInt(req?.query?.pages) - 1)
-        }`;
+        }`
       } else {
-        sort = db`ASC`;
+        sort = db`ASC`
       }
     }
 
     if (isPaginate && !req?.query?.sortType) {
-      sort = db`DESC LIMIT 10 OFFSET ${10 * (parseInt(req?.query?.pages) - 1)}`;
+      sort = db`DESC LIMIT 10 OFFSET ${10 * (parseInt(req?.query?.pages) - 1)}`
     }
 
     if (req?.query?.keyword) {
       query =
-        await db`SELECT *, count(*) OVER() AS full_count FROM recipes WHERE LOWER(recipes.title) LIKE LOWER(${keyword}) ORDER BY id ${sort}`;
+        await db`SELECT *, count(*) OVER() AS full_count FROM recipes WHERE LOWER(recipes.title) LIKE LOWER(${keyword}) ORDER BY id ${sort}`
     } else {
       query =
-        await db`SELECT *, count(*) OVER() AS full_count FROM recipes ORDER BY id ${sort}`;
+        await db`SELECT *, count(*) OVER() AS full_count FROM recipes ORDER BY id ${sort}`
     }
 
     res.json({
-      status: query?.length ? true : false,
-      message: query?.length ? "Get data success" : "Data not found",
+      status: !!query?.length,
+      message: query?.length ? 'Get data success' : 'Data not found',
       total: query?.length ?? 0,
       pages: isPaginate
         ? {
             current: parseInt(req?.query?.pages),
             total: query?.[0]?.full_count
               ? Math.ceil(parseInt(query?.[0]?.full_count) / 10)
-              : 0,
+              : 0
           }
         : null,
       data: query?.map((item) => {
-        delete item.full_count;
-        return item;
-      }),
-    });
+        delete item.full_count
+        return item
+      })
+    })
   } catch (error) {
     res.status(500).json({
       status: false,
-      message: "Error in server",
-    });
+      message: 'Error in server'
+    })
   }
-};
+}
 
 const addNewRecipes = async (req, res) => {
   try {
     // database.push(req.body);
-    const { recipePicture, title, ingredients, video_link } = req.body;
+    const { recipePicture, title, ingredients, video_link } = req.body
 
     // validasi input
     if (!(recipePicture && title && ingredients && video_link)) {
       res.status(400).json({
         status: false,
-        message: "Bad input, please complete all of fields",
-      });
+        message: 'Bad input, please complete all of fields'
+      })
 
-      return;
+      return
     }
 
     const payload = {
       recipePicture,
       title,
       ingredients,
-      video_link,
-    };
+      video_link
+    }
 
-    const query = await db`INSERT INTO recipes ${db(
-      payload,
-      "recipePicture",
-      "title",
-      "ingredients",
-      "video_link"
-    )} returning *`;
+    const query = await model.SetInsertRecipes(payload)
 
     res.send({
       status: true,
-      message: "Success insert data",
-      data: query,
-    });
+      message: 'Success insert data',
+      data: query
+    })
   } catch (error) {
     failed(res, {
       code: 500,
       payload: error.message,
-      message: "Internal Server Error",
-    });
+      message: 'Internal Server Error'
+    })
   }
-};
+}
 
 const editRecipes = async (req, res) => {
   try {
     const {
       params: { id },
-      body: { recipePicture, title, ingredients, video_link },
-    } = req;
+      body: { recipePicture, title, ingredients, video_link }
+    } = req
 
     if (isNaN(id)) {
       res.status(400).json({
         status: false,
-        message: "ID must be integer",
-      });
+        message: 'ID must be integer'
+      })
 
-      return;
+      return
     }
 
-    const checkData = await db`SELECT * FROM recipes WHERE id = ${id}`;
+    const checkData = await model.setGetRecipesByid(id)
 
     // validasi jika id yang kita mau edit tidak ada di database
     if (!checkData.length) {
       res.status(404).json({
         status: false,
-        message: "ID not found",
-      });
+        message: 'ID not found'
+      })
 
-      return;
+      return
     }
 
     const payload = {
       recipePicture: recipePicture ?? checkData[0].recipePicture,
       title: title ?? checkData[0].title,
       ingredients: ingredients ?? checkData[0].ingredients,
-      video_link: video_link ?? checkData[0].video_link,
-    };
+      video_link: video_link ?? checkData[0].video_link
+    }
 
-    const query = await db`UPDATE recipes set ${db(
-      payload,
-      "recipePicture",
-      "title",
-      "ingredients",
-      "video_link"
-    )} WHERE id = ${id} returning *`;
+    const query = await model.setEditRecipes(payload, id)
 
     res.send({
       status: true,
-      message: "Success edit data",
-      data: query,
-    });
+      message: 'Success edit data',
+      data: query
+    })
   } catch (error) {
     failed(res, {
       code: 500,
       payload: error.message,
-      message: "Internal Server Error",
-    });
+      message: 'Internal Server Error'
+    })
   }
-};
+}
 
 const deleteRecipes = async (req, res) => {
   try {
     const {
-      params: { id },
-    } = req;
+      params: { id }
+    } = req
 
     if (isNaN(id)) {
       res.status(400).json({
         status: false,
-        message: "ID must be integer",
-      });
+        message: 'ID must be integer'
+      })
 
-      return;
+      return
     }
 
-    const checkData = await db`SELECT * FROM recipes WHERE id = ${id}`;
+    const checkData = await model.setGetRecipesByid(id)
 
     // validasi jika id yang kita mau edit tidak ada di database
     if (!checkData.length) {
       res.status(404).json({
         status: false,
-        message: "ID not found",
-      });
+        message: 'ID not found'
+      })
 
-      return;
+      return
     }
 
-    const query = await db`DELETE FROM recipes WHERE id = ${id} returning *`;
-
+    const query = await model.setDeleteRecipes(id)
     res.send({
       status: true,
-      message: "Success delete data",
-      data: query,
-    });
+      message: 'Success delete data',
+      data: query
+    })
   } catch (error) {
     failed(res, {
       code: 500,
       payload: error.message,
-      message: "Internal Server Error",
-    });
+      message: 'Internal Server Error'
+    })
   }
-};
+}
 
 module.exports = {
   getAllRecipes,
   getRecipesById,
   addNewRecipes,
   editRecipes,
-  deleteRecipes,
-};
+  deleteRecipes
+}
