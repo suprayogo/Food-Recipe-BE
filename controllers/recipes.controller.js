@@ -1,5 +1,16 @@
 const db = require('../database')
 const model = require('../models/recipes.models')
+const cloudinary = require("cloudinary").v2;
+const jwt = require("jsonwebtoken");
+
+function getToken(req) {
+  const token = req?.headers?.authorization?.slice(
+    7,
+    req?.headers?.authorization?.length
+  );
+
+  return token;
+}
 
 const getRecipesById = async (req, res) => {
   try {
@@ -43,8 +54,8 @@ const getAllRecipes = async (req, res) => {
 
     if (req?.query?.sortType?.toLowerCase() === 'asc') {
       if (isPaginate) {
-        sort = db`ASC LIMIT 10 OFFSET ${
-          10 * (parseInt(req?.query?.pages) - 1)
+        sort = db`ASC LIMIT 9 OFFSET ${
+          9 * (parseInt(req?.query?.pages) - 1)
         }`
       } else {
         sort = db`ASC`
@@ -52,7 +63,7 @@ const getAllRecipes = async (req, res) => {
     }
 
     if (isPaginate && !req?.query?.sortType) {
-      sort = db`DESC LIMIT 10 OFFSET ${10 * (parseInt(req?.query?.pages) - 1)}`
+      sort = db`DESC LIMIT 9 OFFSET ${9 * (parseInt(req?.query?.pages) - 1)}`
     }
 
     if (req?.query?.keyword) {
@@ -88,13 +99,73 @@ const getAllRecipes = async (req, res) => {
   }
 }
 
+const getProfileRecipes = async (req, res) => {
+  try {
+    jwt.verify(getToken(req), process.env.PRIVATE_KEY, async (err, { id }) => {
+
+      let query
+      const keyword = `%${req?.query?.keyword}%`
+      let sort = db`DESC`
+      const isPaginate =
+        req?.query?.pages &&
+        !isNaN(req?.query?.pages) &&
+        parseInt(req?.query?.pages) >= 1
+  
+      if (req?.query?.sortType?.toLowerCase() === 'asc') {
+        if (isPaginate) {
+          sort = db`ASC LIMIT 9 OFFSET ${
+            9 * (parseInt(req?.query?.pages) - 1)
+          }`
+        } else {
+          sort = db`ASC`
+        }
+      }
+  
+      if (isPaginate && !req?.query?.sortType) {
+        sort = db`DESC LIMIT 9 OFFSET ${9 * (parseInt(req?.query?.pages) - 1)}`
+      }
+  
+      if (req?.query?.keyword) {
+        query =
+          await db`SELECT *, count(*) OVER() AS full_count FROM recipes WHERE LOWER(recipes.title) LIKE LOWER(${keyword}) AND created_by =${id} ORDER BY id ${sort}`
+      } else {
+        query =
+          await db`SELECT *, count(*) OVER() AS full_count FROM recipes WHERE created_by =${id} ORDER BY id ${sort}`
+      }
+  
+      res.json({
+        status: !!query?.length,
+        message: query?.length ? 'Get data success' : 'Data not found',
+        total: query?.length ?? 0,
+        pages: isPaginate
+          ? {
+              current: parseInt(req?.query?.pages),
+              total: query?.[0]?.full_count
+                ? Math.ceil(parseInt(query?.[0]?.full_count) / 10)
+                : 0
+            }
+          : null,
+        data: query?.map((item) => {
+          delete item.full_count
+          return item
+        })
+      })
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: 'Error in server'
+    })
+  }
+}
+
 const addNewRecipes = async (req, res) => {
   try {
     // database.push(req.body);
-    const { recipePicture, title, ingredients, video_link } = req.body
+    const {  title, ingredients, video_link } = req.body
 
     // validasi input
-    if (!(recipePicture && title && ingredients && video_link)) {
+    if (!( title && ingredients && video_link)) {
       res.status(400).json({
         status: false,
         message: 'Bad input, please complete all of fields'
@@ -104,7 +175,7 @@ const addNewRecipes = async (req, res) => {
     }
 
     const payload = {
-      recipePicture,
+      
       title,
       ingredients,
       video_link
@@ -177,6 +248,113 @@ const editRecipes = async (req, res) => {
   }
 }
 
+const editPhoto = async function (req, res) {
+  try {
+    const {
+      params: { id }
+    } = req
+
+
+    const checkData = await model.setGetRecipesByid(id)
+
+    // validasi jika id yang kita mau edit tidak ada di database
+    if (!checkData.length) {
+      res.status(404).json({
+        status: false,
+        message: 'ID not found'
+      })
+
+      return
+    }
+    
+
+    const { photo } = req?.files ?? {};
+
+
+    if (!photo) {
+      res.status(400).send({
+        status: false,
+        message: "Photo is required",
+      });
+    }
+
+
+    let mimeType = photo.mimetype.split("/")[1];
+    let allowFile = ["jpeg", "jpg", "png", "webp"];
+
+    // cari apakah tipe data yang di upload terdapat salah satu dari list yang ada diatas
+    if (!allowFile?.find((item) => item === mimeType)) {
+      res.status(400).send({
+        status: false,
+        message: "Only accept jpeg, jpg, png, webp",
+      });
+    }
+
+
+    
+      // validate size image
+      if (photo.size > 2000000) {
+        res.status(400).send({
+          status: false,
+          message: "File to big, max size 2MB",
+        });
+      }
+
+
+
+      cloudinary.config({
+        cloud_name: "df9mh6l4n",
+        api_key: "368677466729715",
+        api_secret: "aZElKVwuvGJdPPZkOXAb-BRUk10",
+      });
+
+      const upload = cloudinary.uploader.upload(photo.tempFilePath, {
+        public_id: new Date().toISOString(),
+      });
+
+     
+
+      upload
+      .then(async (data) => {
+        const payload = {
+          recipePicture: data?.secure_url,
+        };
+       
+        model.SeteditPhotoUser(payload, id);
+
+
+        res.status(200).send({
+          status: false,
+          message: "Success upload",
+          data: payload,
+        });
+      })
+      .catch((err) => {
+        
+        res.status(400).send({
+          status: false,
+          message: err,
+        });
+      });
+   
+
+
+
+
+
+
+
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      status: false,
+      message: "Error on server",
+    });
+  }
+}
+
+
 const deleteRecipes = async (req, res) => {
   try {
     const {
@@ -224,5 +402,7 @@ module.exports = {
   getRecipesById,
   addNewRecipes,
   editRecipes,
-  deleteRecipes
+  deleteRecipes,
+  editPhoto,
+  getProfileRecipes
 }

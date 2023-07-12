@@ -13,7 +13,7 @@ const SetInsertRecipes = async (payload) => {
   try {
     const query = await db`INSERT INTO recipes ${db(
             payload,
-            'recipePicture',
+         
             'title',
             'ingredients',
             'video_link'
@@ -28,7 +28,7 @@ const setEditRecipes = async (payload, id) => {
   try {
     const query = await db`UPDATE recipes set ${db(
             payload,
-            'recipePicture',
+        
             'title',
             'ingredients',
             'video_link'
@@ -38,6 +38,21 @@ const setEditRecipes = async (payload, id) => {
     return error
   }
 }
+
+
+const SeteditPhotoUser = async (payload, id) => {
+  try {
+    const query = await db`UPDATE recipes set ${db(
+      payload,
+      "recipePicture"
+    )} WHERE id = ${id} returning *`;
+
+    return query;
+  } catch (error) {
+    return error;
+  }
+};
+
 
 const setDeleteRecipes = async (id) => {
   try {
@@ -53,6 +68,7 @@ module.exports = {
   setGetRecipesByid,
   SetInsertRecipes,
   setEditRecipes,
-  setDeleteRecipes
+  setDeleteRecipes,
+  SeteditPhotoUser
 
 }

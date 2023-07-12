@@ -1,52 +1,71 @@
-const db = require('../database')
-const model = require('../models/profile.models')
+const model = require("../models/profile.models");
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
+const jwt = require("jsonwebtoken");
+const cloudinary = require("cloudinary").v2;
+
+function getToken(req) {
+  const token = req?.headers?.authorization?.slice(
+    7,
+    req?.headers?.authorization?.length
+  );
+
+  return token;
+}
 
 const getProfileById = async (req, res) => {
   try {
     const {
-      params: { id }
-    } = req
+      params: { id },
+    } = req;
 
     if (isNaN(id)) {
       res.status(400).json({
         status: false,
-        message: 'ID must be integer'
-      })
+        message: "ID must be integer",
+      });
 
-      return
+      return;
     }
 
-    const query = await model.getUserByid(id)
+    const query = await model.getUserById(id);
 
     res.json({
       status: true,
-      message: 'Get data success',
-      data: query
-    })
+      message: "Get data success",
+      data: query,
+    });
   } catch (error) {
     res.status(500).json({
       status: false,
-      message: 'Error in server'
-    })
+      message: "Error in server",
+    });
   }
-}
+};
 
-const getAllProfile = async (req, res) => {
-  const query = await model.getAllUser()
-  res.json({
-    status: true,
-    message: 'Get data success',
-    data: query
-  })
-}
-
-const addNewProfile = async (req, res) => {
+const getAllProfile = async function (req, res) {
   try {
-    // database.push(req.body);
-    const { email, fullname, phoneNumber, password, profilePicture } = req.body
+    const query = await model.getAllUser();
+
+    res.json({
+      status: true,
+      message: "Get data success",
+      data: query,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Error in server",
+    });
+  }
+};
+
+const addNewProfile = async function (req, res) {
+  // database.push(req.body);
+  const { email, fullname, phoneNumber, password } = req.body
 
     // validasi input
-    if (!(email && fullname && phoneNumber && password && profilePicture)) {
+    if (!(email && fullname && phoneNumber && password)) {
       res.status(400).json({
         status: false,
         message: 'Bad input, please complete all of fields'
@@ -59,123 +78,193 @@ const addNewProfile = async (req, res) => {
       email,
       fullname,
       phoneNumber,
-      password,
-      profilePicture
+      password
     }
 
-    const query = await model.insertUser(payload)
+  let query;
 
-    res.send({
-      status: true,
-      message: 'Success insert data',
-      data: query
-    })
-  } catch (error) {
-    res.status(500).json({
-      status: false,
-      message: 'Error in server'
-    })
-  }
-}
+  bcrypt.genSalt(saltRounds, function (err, salt) {
+    bcrypt.hash(password, salt, async function (err, hash) {
+      // Store hash in your password DB.
+      query = await model.insertUser({ ...payload, password: hash });
+    });
+  });
 
-const editProfile = async (req, res) => {
+  res.send({
+    status: true,
+    message: "Success insert data",
+    data: query,
+  });
+};
+
+const editProfile = async function (req, res) {
   try {
-    const {
-      params: { id },
-      body: { email, fullname, phoneNumber, password, profilePicture }
-    } = req
+    jwt.verify(getToken(req), process.env.PRIVATE_KEY, async (err, { id }) => {
+      const {
+        body: { email, fullname, phoneNumber, password, profilePicture },
+      } = req;
 
+      if (isNaN(id)) {
+        res.status(400).json({
+          status: false,
+          message: "ID must be integer",
+        });
+
+        return;
+      }
+
+      const checkData = await model.getUserById(id);
+
+      // validasi jika id yang kita mau edit tidak ada di database
+      if (!checkData.length) {
+        res.status(404).json({
+          status: false,
+          message: "ID not found",
+        });
+
+        return;
+      }
+
+      const payload = {
+        email: email ?? checkData[0].email,
+        fullname: fullname ?? checkData[0].fullname,
+        phoneNumber: phoneNumber ?? checkData[0].phoneNumber,
+        password: password ?? checkData[0].password
+      };
+
+      let query;
+
+      if (password) {
+        bcrypt.genSalt(saltRounds, function (err, salt) {
+          bcrypt.hash(password, salt, async function (err, hash) {
+            // Store hash in your password DB.
+            query = await model.editUser({ ...payload, password: hash }, id);
+          });
+        });
+      } else {
+        query = await model.editUser(payload, id);
+      }
+
+      res.send({
+        status: true,
+        message: "Success edit data",
+        data: query,
+      });
+    });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const deleteProfile = async function (req, res) {
+  jwt.verify(getToken(req), process.env.PRIVATE_KEY, async (err, { id }) => {
     if (isNaN(id)) {
       res.status(400).json({
         status: false,
-        message: 'ID must be integer'
-      })
+        message: "ID must be integer",
+      });
 
-      return
+      return;
     }
 
-    const checkData = await model.getUserByid(id)
+    const checkData = await model.getUserById(id);
 
     // validasi jika id yang kita mau edit tidak ada di database
     if (!checkData.length) {
       res.status(404).json({
         status: false,
-        message: 'ID not found'
-      })
+        message: "ID not found",
+      });
 
-      return
+      return;
     }
 
-    const payload = {
-      email: email ?? checkData[0].email,
-      fullname: fullname ?? checkData[0].fullname,
-      phoneNumber: phoneNumber ?? checkData[0].phoneNumber,
-      password: password ?? checkData[0].password,
-      profilePicture: profilePicture ?? checkData[0].profilePicture
-    }
-
-    const query = await model.editUser(payload, id)
+    const query = await model.deleteUser(id);
 
     res.send({
       status: true,
-      message: 'Success edit data',
-      data: query
-    })
-  } catch (error) {
-    failed(res, {
-      code: 500,
-      payload: error.message,
-      message: 'Internal Server Error'
-    })
-  }
-}
+      message: "Success delete data",
+      data: query,
+    });
+  });
+};
 
-const deleteProfile = async (req, res) => {
+const editPhoto = async function (req, res) {
   try {
-    const {
-      params: { id }
-    } = req
+    jwt.verify(getToken(req), process.env.PRIVATE_KEY, async (err, { id }) => {
+      const { photo } = req?.files ?? {};
 
-    if (isNaN(id)) {
-      res.status(400).json({
-        status: false,
-        message: 'ID must be integer'
-      })
+      if (!photo) {
+        res.status(400).send({
+          status: false,
+          message: "Photo is required",
+        });
+      }
 
-      return
-    }
+      let mimeType = photo.mimetype.split("/")[1];
+      let allowFile = ["jpeg", "jpg", "png", "webp"];
 
-    const checkData = await model.getUserByid(id)
+      // cari apakah tipe data yang di upload terdapat salah satu dari list yang ada diatas
+      if (!allowFile?.find((item) => item === mimeType)) {
+        res.status(400).send({
+          status: false,
+          message: "Only accept jpeg, jpg, png, webp",
+        });
+      }
 
-    // validasi jika id yang kita mau edit tidak ada di database
-    if (!checkData.length) {
-      res.status(404).json({
-        status: false,
-        message: 'ID not found'
-      })
+      // validate size image
+      if (photo.size > 2000000) {
+        res.status(400).send({
+          status: false,
+          message: "File to big, max size 2MB",
+        });
+      }
 
-      return
-    }
+      cloudinary.config({
+        cloud_name: "df9mh6l4n",
+        api_key: "368677466729715",
+        api_secret: "aZElKVwuvGJdPPZkOXAb-BRUk10",
+      });
 
-    const query = await model.deleteUser
+      const upload = cloudinary.uploader.upload(photo.tempFilePath, {
+        public_id: new Date().toISOString(),
+      });
 
-    res.send({
-      status: true,
-      message: 'Success delete data',
-      data: query
-    })
+      upload
+        .then(async (data) => {
+          const payload = {
+            profilePicture: data?.secure_url,
+          };
+
+          model.editPhotoUser(payload, id);
+
+          res.status(200).send({
+            status: false,
+            message: "Success upload",
+            data: payload,
+          });
+        })
+        .catch((err) => {
+          res.status(400).send({
+            status: false,
+            message: err,
+          });
+        });
+    });
   } catch (error) {
-    res.status(500).json({
+    console.log(error);
+    res.status(500).send({
       status: false,
-      message: 'Error in server'
-    })
+      message: "Error on server",
+    });
   }
-}
+};
 
 module.exports = {
   getProfileById,
   getAllProfile,
-  editProfile,
   addNewProfile,
-  deleteProfile
-}
+  editProfile,
+  deleteProfile,
+  editPhoto,
+};
