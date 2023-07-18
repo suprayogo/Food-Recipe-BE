@@ -8,6 +8,8 @@ router.get('/profile/:id', middleware, controller.getProfileById)
 // get all data
 router.get('/profile', middleware, controller.getAllProfile)
 
+router.get('/token', middleware, controller.getProfileByToken)
+
 // insert data
 router.post('/profile', controller.addNewProfile)
 

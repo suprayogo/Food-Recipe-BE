@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt");
 const saltRounds = 10;
 const jwt = require("jsonwebtoken");
 const cloudinary = require("cloudinary").v2;
+const db = require('../database')
 
 function getToken(req) {
   const token = req?.headers?.authorization?.slice(
@@ -28,7 +29,7 @@ const getProfileById = async (req, res) => {
       return;
     }
 
-    const query = await model.getUserById(id);
+    const query = await model.getUserById(id);  
 
     res.json({
       status: true,
@@ -42,6 +43,52 @@ const getProfileById = async (req, res) => {
     });
   }
 };
+
+
+const getProfileByToken = async (req, res) => {
+  try {
+    jwt.verify(getToken(req), process.env.PRIVATE_KEY, async (err, decoded) => {
+      // ... Token verification code ...
+
+      // Get the user's data from the database using the user ID
+      try {
+        const { id } = decoded; // Extract the user ID from the decoded token payload
+        const userData = await db`SELECT * FROM users WHERE id = ${id}`;
+console.log(db)
+        if (!userData || userData.length === 0) {
+          return res.status(404).json({
+            status: false,
+            message: "User data not found",
+          });
+        }
+
+        res.json({
+          status: true,
+          message: "Get data success",
+          data: userData[0], // Since 'userData' is an array, access the first element
+        });
+      } catch (error) {
+        console.error(error); // Log the specific error
+        res.status(500).json({
+          status: false,
+          message: "Error in server",
+          error: error.message, // Include the specific error message in the response
+        });
+      }
+    });
+  } catch (error) {
+    console.error(error); // Log the specific error
+    res.status(500).json({
+      status: false,
+      message: "Error in server",
+      error: error.message, // Include the specific error message in the response
+    });
+  }
+};
+
+
+
+
 
 const getAllProfile = async function (req, res) {
   try {
@@ -61,40 +108,68 @@ const getAllProfile = async function (req, res) {
 };
 
 const addNewProfile = async function (req, res) {
-  // database.push(req.body);
-  const { email, fullname, phoneNumber, password } = req.body
+  const { email, fullname, phoneNumber, password } = req.body;
 
-    // validasi input
-    if (!(email && fullname && phoneNumber && password)) {
+  // Validation: Check if any field is missing
+  if (!(email && fullname && phoneNumber && password)) {
+    res.status(400).json({
+      status: false,
+      message: "Please fill in all fields",
+    });
+    return;
+  }
+
+  // Email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email.match(emailRegex)) {
+    res.status(400).json({
+      status: false,
+      message: "Enter a correct and active email address (@)",
+    });
+    return;
+  }
+
+  try {
+    // Check if the email already exists in the database
+    const existingUser = await model.getUserByEmail(email);
+    if (existingUser.length > 0) {
       res.status(400).json({
         status: false,
-        message: 'Bad input, please complete all of fields'
-      })
-
-      return
+        message: "Email has been registered",
+      });
+      return;
     }
 
-    const payload = {
-      email,
-      fullname,
-      phoneNumber,
-      password
+    // Validation: Check if the password meets the criteria
+    const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+    if (!password.match(passwordRegex)) {
+      res.status(400).json({
+        status: false,
+        message:
+          "Password must be at least 8 characters with a combination of letters and numbers",
+      });
+      return;
     }
 
-  let query;
-
-  bcrypt.genSalt(saltRounds, function (err, salt) {
-    bcrypt.hash(password, salt, async function (err, hash) {
-      // Store hash in your password DB.
-      query = await model.insertUser({ ...payload, password: hash });
+    // Hash the password
+    bcrypt.genSalt(saltRounds, function (err, salt) {
+      bcrypt.hash(password, salt, async function (err, hash) {
+        // Store the hashed password in the database
+        const query = await model.insertUser({ ...req.body, password: hash });
+        res.send({
+          status: true,
+          message: "Registration is successful",
+          data: query,
+        });
+      });
     });
-  });
-
-  res.send({
-    status: true,
-    message: "Success insert data",
-    data: query,
-  });
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: "Error in server",
+      error: error.message,
+    });
+  }
 };
 
 const editProfile = async function (req, res) {
@@ -129,7 +204,7 @@ const editProfile = async function (req, res) {
         email: email ?? checkData[0].email,
         fullname: fullname ?? checkData[0].fullname,
         phoneNumber: phoneNumber ?? checkData[0].phoneNumber,
-        password: password ?? checkData[0].password
+        password: password ?? checkData[0].password,
       };
 
       let query;
@@ -267,4 +342,5 @@ module.exports = {
   editProfile,
   deleteProfile,
   editPhoto,
+  getProfileByToken,
 };

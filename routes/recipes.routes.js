@@ -1,5 +1,7 @@
 const router = require('express').Router()
 const controller = require('../controllers/recipes.controller')
+const middleware = require('../middleware/jwt.middleware')
+
 
 
 // get data by id
@@ -10,12 +12,12 @@ router.get('/recipes', controller.getAllRecipes)
 
 
 // get recipes data profile
-router.get('/recipes/profile/me', controller.getProfileRecipes)
+router.get('/recipes/profile/me',middleware, controller.getProfileRecipes)
 
 
 
 // insert data
-router.post('/recipes', controller.addNewRecipes)
+router.post('/recipes', middleware, controller.addNewRecipes)
 
 // edit data
 router.patch('/recipes/:id', controller.editRecipes)
