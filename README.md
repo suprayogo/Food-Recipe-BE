@@ -57,7 +57,7 @@ CLOUDINARY_SECRET=
 <!-- RELATED PROJECT -->
 ## Related Project 
 
-- [Food Recipe API](https://github.com/suprayogo/pijar-food-be-new)
+- [Food Recipe ](https://github.com/suprayogo/learn-react-fe)
 - [Food Recipe Demo](https://rizki-suprayogo-learn-react-fe.vercel.app/)
 
 ## Authors
