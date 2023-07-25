@@ -47,7 +47,7 @@ app.use(recipesRoutes)
 app.use(authRoutes)
 
 app.get('/', function (req, res) {
-  res.send('Hello World')
+  res.send('Hello World, Food Recipe API By Rizki Suprayogo')
 })
 
 // listener
