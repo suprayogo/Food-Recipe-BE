@@ -319,6 +319,100 @@ const uploadImage = async function (photo) {
   }
 };
 
+
+
+
+
+const toggleLikeRecipes = async (req, res) => {
+  const { recipeId } = req.params;
+  const { token } = req.headers;
+
+  try {
+    // Verifikasi token pengguna (opsional, tergantung kebutuhan aplikasi)
+    const userId = req.userId;
+
+    // Cek apakah resep dengan recipeId tertentu ada dalam database
+    const recipe = await db`SELECT * FROM recipes WHERE id = ${[recipeId]}`;
+
+    if (recipe.length === 0) {
+      return res.status(404).json({ message: "Recipe not found." });
+    }
+    
+    let userLikes = recipe[0].liked;
+
+    if (!Array.isArray(userLikes)) {
+      userLikes = []; // Inisialisasi dengan array kosong jika likes bukan array
+    }
+
+    const isLiked = userLikes.includes(userId);
+console.log(recipe[0].liked);
+    console.log(userId);
+    console.log(isLiked);
+    console.log(userLikes);
+
+    if (!isLiked) {
+      // Tambahkan "like" dari user
+      userLikes.push(userId);
+    } else {
+      // Hapus "like" dari user
+      const updatedLikes = userLikes.filter((id) => id !== userId);
+      userLikes = updatedLikes; // Perbaiki disini, assign kembali ke userLikes setelah manipulasi
+    }
+
+    // Update jumlah "like" (likes)
+    const likes = userLikes.length;
+
+    // Update kolom "likes" pada tabel "recipes" dengan data yang telah diubah
+    await db`UPDATE recipes SET likes = ${likes}, liked = ${userLikes} WHERE id = ${recipeId}`;
+
+    // Cek apakah pengguna sudah melakukan "like" atau "unlike" pada resep ini di tabel "popular"
+    const popular = await db`SELECT * FROM popular WHERE id_users = ${userId} AND id_recipe = ${recipeId}`;
+
+    if (isLiked) {
+      // Jika pengguna sudah melakukan "like" sebelumnya, lakukan "unlike" dengan menghapus entri pada tabel "popular"
+      if (popular.length > 0) {
+        await db`DELETE FROM popular WHERE id_users = ${userId} AND id_recipe = ${recipeId}`;
+      }
+    } else {
+      // Jika pengguna belum melakukan "like" sebelumnya, lakukan "like" dengan menambahkan entri baru pada tabel "popular"
+      if (popular.length === 0) {
+        await db`INSERT INTO popular (id_users, id_recipe) VALUES (${userId}, ${recipeId})`;
+      }
+    }
+
+    const message = isLiked ? "Recipe unliked successfully!" : "Recipe liked successfully!";
+    return res.status(200).json({ message });
+  } catch (error) {
+    console.error("Error toggling like:", error);
+    return res.status(500).json({ message: "An error occurred while toggling like. Please try again later." });
+  }
+};
+
+const iconLikeChange = async (req, res) => {
+  const { recipeId } = req.params;
+  const { userId } = req;
+
+  try {
+    // Cek apakah ada entri di tabel "popular" berdasarkan "id_user" dan "id_recipe"
+    const popular = await db`SELECT * FROM popular WHERE id_users = ${userId} AND id_recipe = ${recipeId}`;
+    const isLiked = popular.length > 0;
+
+    res.status(200).json({ isLiked });
+  } catch (error) {
+    console.error('Error fetching like status:', error);
+    res.status(500).json({ message: 'An error occurred while fetching like status.' });
+  }
+};
+
+
+
+
+
+
+
+
+
+
 const editRecipes = async (req, res) => {
   try {
     const {
@@ -507,4 +601,6 @@ module.exports = {
   getProfileRecipes,
   uploadImage,
   getRecipesPopular,
+  toggleLikeRecipes,
+  iconLikeChange,
 };

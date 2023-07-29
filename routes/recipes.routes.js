@@ -17,6 +17,13 @@ router.get('/popular', controller.getRecipesPopular)
 // get recipes data profile
 router.get('/recipes/profile/me',middleware, controller.getProfileRecipes)
 
+// insert like for recipe
+router.post('/recipes/:recipeId/like', middleware, controller.toggleLikeRecipes)
+
+
+// insert like-status for icon in recipe
+router.get('/recipes/:recipeId/status', middleware, controller.iconLikeChange)
+
 
 
 // insert data
