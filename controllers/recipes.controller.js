@@ -2,6 +2,7 @@ const db = require("../database");
 const model = require("../models/recipes.models");
 const cloudinary = require("cloudinary").v2;
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 function getToken(req) {
   const token = req?.headers?.authorization?.slice(
@@ -320,9 +321,6 @@ const uploadImage = async function (photo) {
 };
 
 
-
-
-
 const toggleLikeRecipes = async (req, res) => {
   const { recipeId } = req.params;
   const { token } = req.headers;
@@ -405,10 +403,119 @@ const iconLikeChange = async (req, res) => {
 };
 
 
+const getLikedRecipes = async (req, res) => {
+  const  userId  = req.userId;
+console.log(userId);
+  try {
+   
+    const likedRecipes = await db`SELECT * FROM recipes INNER JOIN popular ON recipes.id = popular.id_recipe WHERE popular.id_users = ${userId}`;
+
+    res.status(200).json({ likedRecipes });
+  } catch (error) {
+    console.error('Error fetching liked recipes:', error);
+    res.status(500).json({ message: 'An error occurred while fetching liked recipes.' });
+  }
+};
 
 
 
+const insertCommentRecipes = async (req, res) => {
+  const { recipeId } = req.params;
 
+
+  try {
+    // Verify the token
+    jwt.verify(getToken(req), process.env.PRIVATE_KEY, async (err, decoded) => {
+      if (err) {
+        return res.status(401).json({
+          status: false,
+          message: "Invalid token",
+        });
+      }
+
+      const { id } = decoded; // Extract the user ID from the decoded token payload
+      const userData = await db`SELECT * FROM users WHERE id = ${id}`;
+
+      if (!userData || userData.length === 0) {
+        return res.status(404).json({
+          status: false,
+          message: "User data not found",
+        });
+      }
+
+      // Continue with the rest of the code after token verification
+      const { comment } = req.body;
+      const userId = decoded.id;
+      const idRecipes = parseInt(recipeId);
+
+      console.log(userData[0].fullname);
+      console.log(idRecipes);
+      console.log(userId);
+
+      if (!comment) {
+        return res.status(400).json({
+          status: false,
+          message: "Bad input, please complete fields",
+        });
+      }
+
+      // Proceed with saving the comment to the "comment" table in the database
+      await db`
+        INSERT INTO comment (id_users, commentar, id_recipes) VALUES (${userId},${comment}, ${idRecipes})`;
+  
+   
+      res.json({
+        status: true,
+        message: "Comment added successfully!",
+      });
+    });
+  } catch (error) {
+    // Handle errors that occur during token verification or database operations
+    console.error("Error inserting comment:", error);
+    res.status(500).json({
+      status: false,
+      message: "An error occurred while inserting comment. Please try again later.",
+    });
+  }
+};
+
+const getCommentRecipes = async (req, res) => {
+  const { recipeId } = req.params;
+
+  try {
+    jwt.verify(getToken(req), process.env.PRIVATE_KEY, async (err, decoded) => {
+      if (err) {
+        return res.status(401).json({
+          status: false,
+          message: "Invalid token",
+        });
+      }
+
+      const { id } = decoded; // Extract the user ID from the decoded token payload
+      console.log(decoded.profilePicture);
+
+      // Assuming you have the necessary database connection and queries set up
+      const comments = await db`SELECT * FROM comment WHERE id_recipes = ${recipeId}`;
+
+      // Assuming you want to include the user ID associated with each comment
+      // You can join the "users" table to get the user data.
+      const commentsWithUserData = await db`
+        SELECT c.commentar, u.id AS user_id, u.fullname AS user_fullname, u."profilePicture" AS user_profilePicture FROM comment c JOIN users u ON c.id_users = u.id WHERE c.id_recipes = ${recipeId}`;
+
+      res.json({
+        status: true,
+        message: "Comments retrieved successfully!",
+        comments: commentsWithUserData, // You can use the appropriate variable here
+      });
+    });
+  } catch (error) {
+    console.error("Error fetching comments:", error);
+    res.status(500).json({
+      status: false,
+      message: "An error occurred while fetching comments. Please try again later.",
+    });
+  }
+};
 
 
 
@@ -603,4 +710,8 @@ module.exports = {
   getRecipesPopular,
   toggleLikeRecipes,
   iconLikeChange,
+  insertCommentRecipes,
+  getCommentRecipes,
+  getLikedRecipes,
+
 };
