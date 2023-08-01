@@ -500,12 +500,12 @@ const getCommentRecipes = async (req, res) => {
       // Assuming you want to include the user ID associated with each comment
       // You can join the "users" table to get the user data.
       const commentsWithUserData = await db`
-        SELECT c.commentar, u.id AS user_id, u.fullname AS user_fullname, u."profilePicture" AS user_profilePicture FROM comment c JOIN users u ON c.id_users = u.id WHERE c.id_recipes = ${recipeId}`;
+        SELECT c.commentar, u.id AS user_id, u.fullname AS user_fullname, u."profilePicture" AS user_profilePicture FROM comment c JOIN users u ON c.id_users = u.id WHERE c.id_recipes = ${recipeId} ORDER BY c.timestamp DESC`; // Added "ORDER BY c.timestamp DESC" to sort comments by the latest timestamp
 
       res.json({
         status: true,
         message: "Comments retrieved successfully!",
-        comments: commentsWithUserData, // You can use the appropriate variable here
+        comments: commentsWithUserData,
       });
     });
   } catch (error) {
@@ -516,7 +516,6 @@ const getCommentRecipes = async (req, res) => {
     });
   }
 };
-
 
 
 

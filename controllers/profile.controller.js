@@ -200,11 +200,22 @@ const editProfile = async function (req, res) {
         return;
       }
 
+      // Validation: Check if the password meets the criteria
+      const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+      if (password && !password.match(passwordRegex)) {
+        res.status(400).json({
+          status: false,
+          message:
+            "Password must be at least 8 characters with a combination of letters and numbers",
+        });
+        return;
+      }
+
       const payload = {
         email: email ?? checkData[0].email,
         fullname: fullname ?? checkData[0].fullname,
         phoneNumber: phoneNumber ?? checkData[0].phoneNumber,
-        password: password ?? checkData[0].password,
+        password: password ? password : checkData[0].password, // Use the new password if provided, otherwise keep the old one
       };
 
       let query;
@@ -230,6 +241,7 @@ const editProfile = async function (req, res) {
     console.log(error);
   }
 };
+
 
 const deleteProfile = async function (req, res) {
   jwt.verify(getToken(req), process.env.PRIVATE_KEY, async (err, { id }) => {
