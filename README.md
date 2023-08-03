@@ -51,7 +51,7 @@ CLOUDINARY_SECRET=
 
 ## Endpoint List
 
-[![Run in Postman](https://run.pstmn.io/button.svg)](LINK)
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://documenter.getpostman.com/view/27256912/2s9XxwxELx)
 
 
 <!-- RELATED PROJECT -->
