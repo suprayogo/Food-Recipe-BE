@@ -22,7 +22,7 @@ This is a Restful API repository for Food Recipe. This Restful API is built usin
 
 ### Installation
 
-- Clone this project with `git clone https://github.com/suprayogo/pijar-food-be-new.git
+- Clone this project with `git clone https://github.com/suprayogo/Food-Recipe-BE.git
 - Install package required with `npm install`
 - Setting .env
 
@@ -51,7 +51,7 @@ CLOUDINARY_SECRET=
 
 ## Endpoint List
 
-[![Run in Postman](https://run.pstmn.io/button.svg)](LINK)
+[![Run in Postman](https://run.pstmn.io/button.svg)](https://documenter.getpostman.com/view/27256912/2s9XxwxELx)
 
 
 <!-- RELATED PROJECT -->
