@@ -142,14 +142,23 @@ const addNewProfile = async function (req, res) {
 
     // Validation: Check if the password meets the criteria
     const passwordRegex = /^(?=.*[a-zA-Z])(?=.*\d)[a-zA-Z\d]{8,}$/;
+
     if (!password.match(passwordRegex)) {
-      res.status(400).json({
-        status: false,
-        message:
-          "Password must be at least 8 characters with a combination of letters and numbers",
-      });
+      if (/[!@#$%^&*()_+{}\[\]:;<>,.?~\\/]/.test(password)) {
+        res.status(400).json({
+          status: false,
+          message: "Password must not contain special characters",
+        });
+      } else {
+        res.status(400).json({
+          status: false,
+          message:
+            "Password must be at least 8 characters with a combination of letters and numbers",
+        });
+      }
       return;
     }
+    
 
     // Hash the password
     bcrypt.genSalt(saltRounds, function (err, salt) {

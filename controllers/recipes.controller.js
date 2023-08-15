@@ -101,6 +101,56 @@ const getAllRecipes = async (req, res) => {
 };
 
 
+const getCategoryRecipes = async (req, res) => {
+  try {
+    const categoryId = req.query.categoryId; // Ambil nilai ID kategori dari permintaan
+console.log(req.query.categoryId);
+    // Ambil informasi dari tabel category berdasarkan ID kategori yang diberikan
+    const categoryQuery = await db`SELECT * FROM category WHERE id = ${categoryId}`;
+    console.log(categoryQuery);
+    const category = categoryQuery[0]; // Ambil baris pertama dari hasil query
+    console.log(category);
+    // Jika kategori ditemukan, lakukan query resep berdasarkan id_category yang cocok
+    if (category) {
+      const recipesQuery = await db`SELECT recipes.id AS recipe_id, recipes.title, recipes.ingredients, recipes."recipePicture", recipes.liked, recipes.id_category, category.name_category
+        FROM recipes
+        INNER JOIN category ON category.id = ANY(recipes.id_category)
+        WHERE category.id = ${categoryId}`;
+      
+      const recipes = recipesQuery.map((recipe) => {
+        return {
+          id: recipe.recipe_id,
+          title: recipe.title,
+          ingredients: recipe.ingredients,
+          recipePicture: recipe.recipePicture,
+          liked: recipe.liked,
+          categoryId: recipe.id_category,
+          categoryName: recipe.name_category,
+        };
+      });
+
+      res.json({
+        status: true,
+        message: "Get data success",
+        recipes: recipes,
+      });
+    } else {
+      res.json({
+        status: false,
+        message: "Category not found",
+      });
+    }
+  } catch (error) {
+    console.error("Error in getCategoryRecipes:", error);
+    res.status(500).json({
+      status: false,
+      message: "Error in server",
+      error: error.message,
+    });
+  }
+};
+
+
 const getRecipesPopular = async (req, res) => {
   try {
     let query;
@@ -712,5 +762,5 @@ module.exports = {
   insertCommentRecipes,
   getCommentRecipes,
   getLikedRecipes,
-
+  getCategoryRecipes,
 };

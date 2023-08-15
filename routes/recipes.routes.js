@@ -10,6 +10,11 @@ router.get('/recipes/:id', controller.getRecipesById)
 // get all data
 router.get('/recipes', controller.getAllRecipes)
 
+// get all data
+router.get('/category', controller.getCategoryRecipes)
+
+
+
 // get data popular
 router.get('/popular', controller.getRecipesPopular)
 
