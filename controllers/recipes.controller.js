@@ -269,11 +269,11 @@ const getProfileRecipes = async (req, res) => {
 
 const addNewRecipes = async (req, res) => {
   try {
-    const { title, ingredients, video_link } = req.body;
+    const { title, ingredients, video_link, id_category  } = req.body;
     const { photo } = req?.files ?? {};
 
     // Validation
-    if (!(title && ingredients && video_link)) {
+    if (!(title && ingredients && video_link && id_category )) {
       res.status(400).json({
         status: false,
         message: "Bad input, please complete all fields",
@@ -325,6 +325,7 @@ const addNewRecipes = async (req, res) => {
       created_by,
       namechef: namechefResult[0]?.fullname || null,
       recipePicture,
+      id_category: JSON.stringify(id_category)
     };
 
     // Insert the recipe into the 'recipes' table using the db function (Assuming it is a query builder)
@@ -335,6 +336,7 @@ const addNewRecipes = async (req, res) => {
       "video_link",
       "created_by",
       "namechef",
+    "id_category",
       "recipePicture" // Add the 'recipePicture' field to the db query
     )} returning *`;
 
