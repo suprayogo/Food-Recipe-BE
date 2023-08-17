@@ -272,7 +272,7 @@ const addNewRecipes = async (req, res) => {
   try {
     const { title, ingredients, video_link, id_category  } = req.body;
     const { photo } = req?.files ?? {};
-
+    const convertedCategoryId = parseInt(id_category);
     // Validation
     if (!(title && ingredients && video_link && id_category )) {
       res.status(400).json({
@@ -326,7 +326,7 @@ const addNewRecipes = async (req, res) => {
       created_by,
       namechef: namechefResult[0]?.fullname || null,
       recipePicture,
-      id_category: JSON.stringify(id_category)
+      id_category: convertedCategoryId 
     };
 
     // Insert the recipe into the 'recipes' table using the db function (Assuming it is a query builder)
