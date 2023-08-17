@@ -112,9 +112,10 @@ console.log(req.query.categoryId);
     console.log(category);
     // Jika kategori ditemukan, lakukan query resep berdasarkan id_category yang cocok
     if (category) {
-      const recipesQuery = await db`SELECT recipes.id AS recipe_id, recipes.title, recipes.ingredients, recipes."recipePicture", recipes.liked, recipes.id_category, category.name_category
+      const recipesQuery = await db`
+        SELECT recipes.id AS recipe_id, recipes.title, recipes.ingredients, recipes."recipePicture", recipes.liked, recipes.id_category, category.name_category
         FROM recipes
-        INNER JOIN category ON category.id = ANY(recipes.id_category)
+        INNER JOIN category ON recipes.id_category = category.id
         WHERE category.id = ${categoryId}`;
       
       const recipes = recipesQuery.map((recipe) => {
@@ -131,20 +132,20 @@ console.log(req.query.categoryId);
 
       res.json({
         status: true,
-        message: "Get data success",
+        message: "Berhasil mendapatkan data",
         recipes: recipes,
       });
     } else {
       res.json({
         status: false,
-        message: "Category not found",
+        message: "Kategori tidak ditemukan",
       });
     }
   } catch (error) {
     console.error("Error in getCategoryRecipes:", error);
     res.status(500).json({
       status: false,
-      message: "Error in server",
+      message: "Terjadi kesalahan di server",
       error: error.message,
     });
   }
